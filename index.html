@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Текстовый кодировщик и декодировщик</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            padding: 20px;
+        }
+
+        h1 {
+            margin-bottom: 10px;
+        }
+
+        #canvas, #decodedCanvas {
+            border: 1px solid black;
+            background-color: white;
+            margin-bottom: 10px;
+        }
+
+        #inputText, #outputText {
+            width: 100%;
+            padding: 5px;
+            margin-bottom: 10px;
+        }
+
+        button {
+            padding: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            margin-bottom: 10px;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        input[type="file"] {
+            margin-bottom: 10px;
+        }
+
+        #downloadBtn {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>Текстовый кодировщик</h1>
+    <textarea id="inputText" rows="4" placeholder="Введите текст..."></textarea><br>
+    <button onclick="processText()">Обработать</button>
+    <canvas id="canvas"></canvas><br>
+    <button id="downloadBtn" onclick="downloadImage()">Скачать</button>
+
+    <h1>Текстовый декодировщик</h1>
+    <input type="file" id="uploadFile" accept="image/*"><br>
+    <button onclick="decodeText()">Декодировать</button>
+    <canvas id="decodedCanvas"></canvas>
+    <textarea id="outputText" rows="4" placeholder="Расшифрованный текст..."></textarea>
+
+    <script>
+        const charset = " абвгдеёжзийклмнопрстуфхцчшщъыьэюяabcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~";
+
+        function getColor(index, maxIndex) {
+            const ratio = index / maxIndex;
+            const r = Math.floor(255 * ratio);
+            const g = 0;
+            const b = Math.floor(255 * (1 - ratio));
+            return `rgb(${r},${g},${b})`;
+        }
+
+        function getColorComponents(color) {
+            const match = color.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
+            if (match) {
+                return {
+                    r: parseInt(match[1]),
+                    g: parseInt(match[2]),
+                    b: parseInt(match[3])
+                };
+            }
+            return null;
+        }
+
+        function processText() {
+            const text = document.getElementById("inputText").value;
+            const canvas = document.getElementById("canvas");
+            const ctx = canvas.getContext("2d");
+
+            const length = text.length;
+            const size = Math.ceil(Math.sqrt(length));
+            const width = size;
+            const height = size;
+
+            canvas.width = width;
+            canvas.height = height;
+
+            ctx.fillStyle = "white"; // изменено на белый цвет фона
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            for (let i = 0; i < text.length; i++) {
+                const char = text[i];
+                const charIndex = charset.indexOf(char);
+
+                if (charIndex !== -1) {
+                    const x = i % width;
+                    const y = Math.floor(i / width);
+                    ctx.fillStyle = getColor(charIndex, charset.length);
+                    ctx.fillRect(x, y, 1, 1);
+                }
+            }
+
+            document.getElementById("downloadBtn").style.display = "block";
+        }
+
+        function downloadImage() {
+            const canvas = document.getElementById("canvas");
+            const link = document.createElement("a");
+            link.download = 'encoded_text.png';
+            link.href = canvas.toDataURL();
+            link.click();
+        }
+
+        function decodeText() {
+            const fileInput = document.getElementById('uploadFile');
+            const canvas = document.getElementById('decodedCanvas');
+            const ctx = canvas.getContext('2d');
+            const outputText = document.getElementById('outputText');
+
+            if (fileInput.files.length === 0) {
+                alert('Пожалуйста, загрузите изображение.');
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+
+            reader.onload = function(event) {
+                const img = new Image();
+                img.onload = function() {
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    ctx.drawImage(img, 0, 0);
+
+                    let decodedText = '';
+                    for (let y = 0; y < img.height; y++) {
+                        for (let x = 0; x < img.width; x++) {
+                            const imageData = ctx.getImageData(x, y, 1, 1).data;
+                            const color = `rgb(${imageData[0]},${imageData[1]},${imageData[2]})`;
+                            for (let i = 0; i < charset.length; i++) {
+                                if (color === getColor(i, charset.length)) {
+                                    decodedText += charset[i];
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    outputText.value = decodedText.trim();
+                }
+                img.src = event.target.result;
+            }
+
+            reader.readAsDataURL(file);
+        }
+    </script>
+</body>
+</html>
